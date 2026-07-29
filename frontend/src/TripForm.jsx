@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { apiUrl } from './api'
 
 const INITIAL_FIELDS = {
   current_location:  '',
@@ -122,7 +123,7 @@ export default function TripForm({ onResult, onLoading }) {
     onLoading?.(true)
 
     try {
-      const res = await fetch('/api/trips/', {
+      const res = await fetch(apiUrl('/api/trips/'), {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
