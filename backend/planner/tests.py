@@ -39,12 +39,17 @@ class CreateTripTests(APITestCase):
             raise GeocodingNotFoundError(location)
         return self.mock_coordinates[location]
 
-    def test_valid_input_returns_200(self):
+    def _post_with_mocked_routing(self, payload=None):
         with (
             patch("planner.views.geocode_location", side_effect=self._mock_geocode),
             patch("planner.views.get_route", return_value=self.mock_route),
         ):
-            response = self.client.post(self.url, self.valid_payload, format="json")
+            return self.client.post(
+                self.url, payload or self.valid_payload, format="json"
+            )
+
+    def test_valid_input_returns_200(self):
+        response = self._post_with_mocked_routing()
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["current_location"], "Chicago, IL")
@@ -56,6 +61,55 @@ class CreateTripTests(APITestCase):
         self.assertEqual(response.data["total_distance_miles"], 1234.56)
         self.assertEqual(response.data["total_driving_hours"], 18.25)
         self.assertEqual(response.data["route_geometry"]["type"], "LineString")
+
+    def test_response_includes_duty_schedule(self):
+        response = self._post_with_mocked_routing()
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn("duty_schedule", response.data)
+
+        schedule = response.data["duty_schedule"]
+        self.assertIsInstance(schedule, list)
+        self.assertGreater(len(schedule), 0)
+
+        for day in schedule:
+            self.assertIn("day_index", day)
+            self.assertIn("segments", day)
+            self.assertIn("totals", day)
+            self.assertIsInstance(day["segments"], list)
+            self.assertGreater(len(day["segments"]), 0)
+
+            for seg in day["segments"]:
+                self.assertIn("status", seg)
+                self.assertIn("start_hour", seg)
+                self.assertIn("end_hour", seg)
+                self.assertIn(seg["status"], ("off_duty", "sleeper_berth", "driving", "on_duty_not_driving"))
+                self.assertGreaterEqual(seg["start_hour"], 0)
+                self.assertLessEqual(seg["end_hour"], 24)
+                self.assertGreater(seg["end_hour"], seg["start_hour"])
+
+            totals = day["totals"]
+            for key in ("off_duty", "sleeper_berth", "driving", "on_duty_not_driving"):
+                self.assertIn(key, totals)
+
+    def test_duty_schedule_total_driving_matches_route(self):
+        response = self._post_with_mocked_routing()
+
+        schedule = response.data["duty_schedule"]
+        total_driving = sum(day["totals"]["driving"] for day in schedule)
+        self.assertAlmostEqual(total_driving, self.mock_route["total_driving_hours"], places=4)
+
+    def test_duty_schedule_contains_pickup_and_dropoff(self):
+        response = self._post_with_mocked_routing()
+
+        all_labels = [
+            seg["label"]
+            for day in response.data["duty_schedule"]
+            for seg in day["segments"]
+            if "label" in seg
+        ]
+        self.assertIn("Pickup", all_labels)
+        self.assertIn("Dropoff", all_labels)
 
     def test_missing_field_returns_400(self):
         payload = {**self.valid_payload}
