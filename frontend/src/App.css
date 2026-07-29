@@ -1,0 +1,28 @@
+.app {
+  max-width: 40rem;
+  margin: 4rem auto;
+  padding: 0 1.5rem;
+  font-family: system-ui, sans-serif;
+}
+
+.app h1 {
+  margin: 0 0 0.75rem;
+  font-size: 2rem;
+}
+
+.status {
+  font-weight: 600;
+}
+
+.status.ok {
+  color: #0a7a32;
+}
+
+.status.error {
+  color: #b42318;
+}
+
+.hint {
+  color: #666;
+  font-size: 0.9rem;
+}
