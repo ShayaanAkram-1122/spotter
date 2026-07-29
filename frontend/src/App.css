@@ -275,6 +275,46 @@
   margin-left: 0.2rem;
 }
 
+/* ── Daily log sheets ───────────────────────────── */
+.day-log-block {
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  overflow: hidden;
+  margin-bottom: 1.25rem;
+}
+
+.day-log-block:last-child {
+  margin-bottom: 0;
+}
+
+.log-sheet-wrap {
+  background: #fff;
+}
+
+.log-sheet-header {
+  display: flex;
+  align-items: center;
+  padding: 0.625rem 0.875rem;
+  background: #f9fafb;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.log-day-badge {
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #374151;
+  background: #e5e7eb;
+  padding: 0.15rem 0.6rem;
+  border-radius: 99px;
+}
+
+.log-sheet-svg-scroll {
+  overflow-x: auto;
+  padding: 0.5rem 0.75rem 0.75rem;
+}
+
 /* ── Schedule table ─────────────────────────────── */
 .schedule-heading {
   margin: 0 0 0.75rem;
@@ -286,7 +326,8 @@
 }
 
 .day-block {
-  margin-bottom: 1.25rem;
+  padding: 0.75rem 0.875rem 0.875rem;
+  border-top: 1px solid #f3f4f6;
 }
 
 .day-label {

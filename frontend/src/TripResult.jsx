@@ -1,4 +1,5 @@
 import TripMap from './TripMap'
+import DailyLogSheet from './DailyLogSheet'
 
 const STATUS_META = {
   driving:            { label: 'Driving',             cls: 'badge-driving'       },
@@ -148,7 +149,10 @@ export default function TripResult({ result }) {
         </p>
 
         {result.duty_schedule.map((day) => (
-          <DayBlock key={day.day_index} day={day} />
+          <div key={day.day_index} className="day-log-block">
+            <DailyLogSheet day={day} />
+            <DayBlock day={day} />
+          </div>
         ))}
       </div>
     </>
