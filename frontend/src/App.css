@@ -119,6 +119,51 @@
   margin: 0;
 }
 
+/* ── Input + action button wrapper ─────────────── */
+.input-with-action {
+  display: flex;
+  gap: 0.5rem;
+  align-items: stretch;
+}
+
+.input-with-action input {
+  flex: 1;
+  min-width: 0;
+}
+
+.btn-geo {
+  flex-shrink: 0;
+  width: 2.5rem;
+  border: 1.5px solid #d1d5db;
+  border-radius: 8px;
+  background: #f9fafb;
+  color: #374151;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.btn-geo:hover:not(:disabled) {
+  background: #eff6ff;
+  border-color: #93c5fd;
+  color: #2563eb;
+}
+
+.btn-geo:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.spinner-sm {
+  width: 0.875rem;
+  height: 0.875rem;
+  border-width: 2px;
+  border-color: rgba(100, 116, 139, 0.35);
+  border-top-color: #374151;
+}
+
 /* ── Submit button ──────────────────────────────── */
 .btn-submit {
   margin-top: 0.5rem;
