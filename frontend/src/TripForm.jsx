@@ -1,23 +1,23 @@
 import { useState } from 'react'
 
 const INITIAL_FIELDS = {
-  current_location: '',
-  pickup_location: '',
-  dropoff_location: '',
-  current_cycle_used: '',
+  current_location:  '',
+  pickup_location:   '',
+  dropoff_location:  '',
+  current_cycle_used:'',
 }
 
 function validate(fields) {
   const errors = {}
-  if (!fields.current_location.trim())  errors.current_location  = 'Required'
-  if (!fields.pickup_location.trim())   errors.pickup_location   = 'Required'
-  if (!fields.dropoff_location.trim())  errors.dropoff_location  = 'Required'
+  if (!fields.current_location.trim())   errors.current_location   = 'Required'
+  if (!fields.pickup_location.trim())    errors.pickup_location    = 'Required'
+  if (!fields.dropoff_location.trim())   errors.dropoff_location   = 'Required'
 
   const cycle = parseFloat(fields.current_cycle_used)
   if (fields.current_cycle_used === '') {
     errors.current_cycle_used = 'Required'
   } else if (isNaN(cycle) || cycle < 0 || cycle > 70) {
-    errors.current_cycle_used = 'Must be a number between 0 and 70'
+    errors.current_cycle_used = 'Must be 0–70'
   }
   return errors
 }
@@ -27,29 +27,41 @@ async function reverseGeocode(lat, lng) {
     `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}` +
     `&format=json&accept-language=en`
   const res = await fetch(url, {
-    headers: { 'User-Agent': 'snapper-planner/1.0 (local development)' },
+    headers: { 'User-Agent': 'routelog-planner/1.0 (local development)' },
   })
   if (!res.ok) throw new Error('Reverse geocode failed')
   const data = await res.json()
-  // Use display_name but strip the very long country-code suffix
   return data.display_name ?? `${lat.toFixed(5)}, ${lng.toFixed(5)}`
 }
 
-function LocationIcon() {
+function GeoIcon() {
   return (
-    <svg width="14" height="14" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-      <path fillRule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clipRule="evenodd" />
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <circle cx="12" cy="12" r="3"/>
+      <path d="M12 2v3M12 19v3M2 12h3M19 12h3"/>
     </svg>
   )
 }
 
-export default function TripForm({ onResult }) {
-  const [fields, setFields]       = useState(INITIAL_FIELDS)
-  const [touched, setTouched]     = useState({})
-  const [loading, setLoading]     = useState(false)
-  const [apiError, setApiError]   = useState(null)
+function ErrorMsg({ msg }) {
+  if (!msg) return null
+  return (
+    <p className="field-error">
+      <svg width="12" height="12" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true" style={{ flexShrink: 0 }}>
+        <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd"/>
+      </svg>
+      {msg}
+    </p>
+  )
+}
+
+export default function TripForm({ onResult, onLoading }) {
+  const [fields, setFields]         = useState(INITIAL_FIELDS)
+  const [touched, setTouched]       = useState({})
+  const [submitting, setSubmitting] = useState(false)
+  const [apiError, setApiError]     = useState(null)
   const [geoLoading, setGeoLoading] = useState(false)
-  const [geoError, setGeoError]   = useState(null)
+  const [geoError, setGeoError]     = useState(null)
 
   const errors     = validate(fields)
   const showErrors = Object.fromEntries(
@@ -79,7 +91,6 @@ export default function TripForm({ onResult }) {
           setFields((prev) => ({ ...prev, current_location: address }))
           setTouched((prev) => ({ ...prev, current_location: true }))
         } catch {
-          // Fall back to raw coordinates if reverse-geocode fails
           setFields((prev) => ({
             ...prev,
             current_location: `${coords.latitude.toFixed(5)}, ${coords.longitude.toFixed(5)}`,
@@ -91,7 +102,7 @@ export default function TripForm({ onResult }) {
       (err) => {
         setGeoLoading(false)
         if (err.code === err.PERMISSION_DENIED) {
-          setGeoError('Location permission denied. Please allow access and try again.')
+          setGeoError('Location permission denied.')
         } else {
           setGeoError('Unable to determine your location.')
         }
@@ -102,18 +113,13 @@ export default function TripForm({ onResult }) {
 
   async function handleSubmit(e) {
     e.preventDefault()
-    setTouched({
-      current_location: true,
-      pickup_location: true,
-      dropoff_location: true,
-      current_cycle_used: true,
-    })
-
+    const allTouched = Object.fromEntries(Object.keys(INITIAL_FIELDS).map((k) => [k, true]))
+    setTouched(allTouched)
     if (Object.keys(errors).length > 0) return
 
-    setLoading(true)
+    setSubmitting(true)
     setApiError(null)
-    onResult(null)
+    onLoading?.(true)
 
     try {
       const res = await fetch('/api/trips/', {
@@ -129,23 +135,24 @@ export default function TripForm({ onResult }) {
 
       if (!res.ok) {
         setApiError(data.error ?? `Request failed (HTTP ${res.status})`)
+        onLoading?.(false)
         return
       }
 
       onResult(data)
     } catch {
       setApiError('Could not reach the server. Is the Django backend running?')
+      onLoading?.(false)
     } finally {
-      setLoading(false)
+      setSubmitting(false)
     }
   }
 
   return (
     <form onSubmit={handleSubmit} noValidate>
       <div className="form-grid">
-
-        {/* Current location — has live-location button */}
-        <div className="form-group">
+        {/* Current location — with live-location button */}
+        <div className="form-group full-width">
           <label htmlFor="current_location">Current location</label>
           <div className="input-with-action">
             <input
@@ -169,39 +176,49 @@ export default function TripForm({ onResult }) {
             >
               {geoLoading
                 ? <span className="spinner spinner-sm" aria-hidden="true" />
-                : <LocationIcon />}
+                : <GeoIcon />}
             </button>
           </div>
-          {showErrors.current_location && (
-            <p className="field-error">{showErrors.current_location}</p>
-          )}
-          {geoError && <p className="field-error">{geoError}</p>}
+          <ErrorMsg msg={showErrors.current_location || geoError} />
         </div>
 
-        {/* Pickup and dropoff — plain text inputs */}
-        {[
-          { name: 'pickup_location',  label: 'Pickup location',  placeholder: 'e.g. Gulberg, Lahore' },
-          { name: 'dropoff_location', label: 'Dropoff location', placeholder: 'e.g. Saddar, Karachi' },
-        ].map(({ name, label, placeholder }) => (
-          <div className="form-group" key={name}>
-            <label htmlFor={name}>{label}</label>
-            <input
-              id={name}
-              name={name}
-              type="text"
-              placeholder={placeholder}
-              value={fields[name]}
-              onChange={handleChange}
-              onBlur={handleBlur}
-              className={showErrors[name] ? 'invalid' : ''}
-              autoComplete="off"
-            />
-            {showErrors[name] && <p className="field-error">{showErrors[name]}</p>}
-          </div>
-        ))}
+        <div className="form-group">
+          <label htmlFor="pickup_location">Pickup location</label>
+          <input
+            id="pickup_location"
+            name="pickup_location"
+            type="text"
+            placeholder="e.g. Gulberg III, Lahore"
+            value={fields.pickup_location}
+            onChange={handleChange}
+            onBlur={handleBlur}
+            className={showErrors.pickup_location ? 'invalid' : ''}
+            autoComplete="off"
+          />
+          <ErrorMsg msg={showErrors.pickup_location} />
+        </div>
 
         <div className="form-group">
-          <label htmlFor="current_cycle_used">Current cycle used (hrs)</label>
+          <label htmlFor="dropoff_location">Dropoff location</label>
+          <input
+            id="dropoff_location"
+            name="dropoff_location"
+            type="text"
+            placeholder="e.g. Saddar, Karachi"
+            value={fields.dropoff_location}
+            onChange={handleChange}
+            onBlur={handleBlur}
+            className={showErrors.dropoff_location ? 'invalid' : ''}
+            autoComplete="off"
+          />
+          <ErrorMsg msg={showErrors.dropoff_location} />
+        </div>
+
+        <div className="form-group">
+          <label htmlFor="current_cycle_used">
+            Current cycle used
+            <span style={{ fontWeight: 400, color: 'var(--text-3)', marginLeft: '0.25rem' }}>(hrs, 0–70)</span>
+          </label>
           <input
             id="current_cycle_used"
             name="current_cycle_used"
@@ -215,27 +232,32 @@ export default function TripForm({ onResult }) {
             onBlur={handleBlur}
             className={showErrors.current_cycle_used ? 'invalid' : ''}
           />
-          {showErrors.current_cycle_used && (
-            <p className="field-error">{showErrors.current_cycle_used}</p>
-          )}
+          <ErrorMsg msg={showErrors.current_cycle_used} />
         </div>
       </div>
 
-      <button type="submit" className="btn-submit" disabled={loading}>
-        {loading ? (
-          <>
-            <span className="spinner" aria-hidden="true" />
-            Planning trip…
-          </>
-        ) : (
-          'Plan trip'
-        )}
-      </button>
+      <div className="form-actions">
+        <button type="submit" className="btn-submit" disabled={submitting}>
+          {submitting ? (
+            <>
+              <span className="spinner" aria-hidden="true" />
+              Planning trip…
+            </>
+          ) : (
+            <>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"/>
+              </svg>
+              Plan trip
+            </>
+          )}
+        </button>
+      </div>
 
       {apiError && (
         <div className="api-error" role="alert">
           <svg className="api-error-icon" width="18" height="18" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-            <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+            <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd"/>
           </svg>
           <p>{apiError}</p>
         </div>

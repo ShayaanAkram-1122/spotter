@@ -2,10 +2,10 @@ import TripMap from './TripMap'
 import DailyLogSheet from './DailyLogSheet'
 
 const STATUS_META = {
-  driving:            { label: 'Driving',             cls: 'badge-driving'       },
-  on_duty_not_driving:{ label: 'On duty (not driving)',cls: 'badge-on_duty'       },
-  off_duty:           { label: 'Off duty',             cls: 'badge-off_duty'      },
-  sleeper_berth:      { label: 'Sleeper berth',        cls: 'badge-sleeper_berth' },
+  driving:             { label: 'Driving',              cls: 'badge-driving'      },
+  on_duty_not_driving: { label: 'On duty (not driving)', cls: 'badge-on_duty'      },
+  off_duty:            { label: 'Off duty',              cls: 'badge-off_duty'     },
+  sleeper_berth:       { label: 'Sleeper berth',         cls: 'badge-sleeper_berth'},
 }
 
 function fmtHour(h) {
@@ -17,10 +17,11 @@ function fmtHour(h) {
 }
 
 function fmtDuration(h) {
+  if (h <= 0) return '—'
   const hours = Math.floor(h)
   const mins  = Math.round((h - hours) * 60)
-  if (hours === 0)   return `${mins}m`
-  if (mins  === 0)   return `${hours}h`
+  if (hours === 0) return `${mins}m`
+  if (mins  === 0) return `${hours}h`
   return `${hours}h ${mins}m`
 }
 
@@ -29,13 +30,16 @@ function StatusBadge({ status }) {
   return <span className={`badge ${meta.cls}`}>{meta.label}</span>
 }
 
+function SectionIcon({ children }) {
+  return <span className="card-title-icon">{children}</span>
+}
+
 function DayBlock({ day }) {
   const nonZeroTotals = Object.entries(day.totals).filter(([, v]) => v > 0)
 
   return (
     <div className="day-block">
-      <p className="day-label">Day {day.day_index + 1}</p>
-
+      <p className="day-label">Segment detail</p>
       <table className="segments-table">
         <thead>
           <tr>
@@ -49,11 +53,11 @@ function DayBlock({ day }) {
         <tbody>
           {day.segments.map((seg, i) => (
             <tr key={i}>
-              <td>{fmtHour(seg.start_hour)}</td>
-              <td>{fmtHour(seg.end_hour)}</td>
-              <td>{fmtDuration(seg.end_hour - seg.start_hour)}</td>
+              <td style={{ fontVariantNumeric: 'tabular-nums', color: 'var(--text-3)' }}>{fmtHour(seg.start_hour)}</td>
+              <td style={{ fontVariantNumeric: 'tabular-nums', color: 'var(--text-3)' }}>{fmtHour(seg.end_hour)}</td>
+              <td style={{ fontWeight: 600 }}>{fmtDuration(seg.end_hour - seg.start_hour)}</td>
               <td><StatusBadge status={seg.status} /></td>
-              <td style={{ color: '#9ca3af' }}>{seg.label ?? '—'}</td>
+              <td style={{ color: 'var(--text-4)', fontSize: '0.825rem' }}>{seg.label ?? '—'}</td>
             </tr>
           ))}
         </tbody>
@@ -78,82 +82,94 @@ export default function TripResult({ result }) {
 
   return (
     <>
+      {/* ── Route summary ── */}
       <div className="card">
-        <p className="card-title">
-          <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-            <path fillRule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clipRule="evenodd" />
-          </svg>
-          Route summary
-        </p>
-
-        <div className="result-meta">
-          <div className="stat-box">
-            <p className="stat-label">Distance</p>
-            <p className="stat-value">
-              {result.total_distance_miles.toLocaleString(undefined, { maximumFractionDigits: 1 })}
-              <span className="stat-unit">mi</span>
-            </p>
-          </div>
-          <div className="stat-box">
-            <p className="stat-label">Drive time</p>
-            <p className="stat-value">
-              {fmtDuration(result.total_driving_hours)}
-            </p>
-          </div>
-          <div className="stat-box">
-            <p className="stat-label">Total on-duty</p>
-            <p className="stat-value">
-              {fmtDuration(totalOnDuty)}
-            </p>
-          </div>
-          <div className="stat-box">
-            <p className="stat-label">Days required</p>
-            <p className="stat-value">
-              {result.duty_schedule.length}
-            </p>
-          </div>
+        <div className="card-head">
+          <p className="card-title">
+            <SectionIcon>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+              </svg>
+            </SectionIcon>
+            Route summary
+          </p>
         </div>
+        <div className="card-body" style={{ paddingTop: 0 }}>
+          <div className="result-meta">
+            <div className="stat-box">
+              <p className="stat-label">Distance</p>
+              <p className="stat-value">
+                {result.total_distance_miles.toLocaleString(undefined, { maximumFractionDigits: 1 })}
+                <span className="stat-unit">mi</span>
+              </p>
+            </div>
+            <div className="stat-box">
+              <p className="stat-label">Drive time</p>
+              <p className="stat-value">{fmtDuration(result.total_driving_hours)}</p>
+            </div>
+            <div className="stat-box">
+              <p className="stat-label">Total on-duty</p>
+              <p className="stat-value">{fmtDuration(totalOnDuty)}</p>
+            </div>
+            <div className="stat-box">
+              <p className="stat-label">Days required</p>
+              <p className="stat-value">{result.duty_schedule.length}</p>
+            </div>
+          </div>
 
-        <div className="coords-row" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.5rem' }}>
-          {['current_location', 'pickup_location', 'dropoff_location'].map((key) => {
-            const coord = result.coordinates[key]
-            const labels = { current_location: 'Current', pickup_location: 'Pickup', dropoff_location: 'Dropoff' }
-            return (
-              <div key={key} className="stat-box" style={{ padding: '0.625rem 0.75rem' }}>
-                <p className="stat-label">{labels[key]}</p>
-                <p style={{ margin: 0, fontSize: '0.78rem', color: '#374151', fontVariantNumeric: 'tabular-nums' }}>
-                  {coord.lat.toFixed(4)}, {coord.lng.toFixed(4)}
-                </p>
-              </div>
-            )
-          })}
+          <div className="coords-grid">
+            {[
+              { key: 'current_location', label: 'Current' },
+              { key: 'pickup_location',  label: 'Pickup'  },
+              { key: 'dropoff_location', label: 'Dropoff' },
+            ].map(({ key, label }) => {
+              const coord = result.coordinates[key]
+              return (
+                <div key={key} className="stat-box">
+                  <p className="stat-label">{label}</p>
+                  <p style={{ margin: 0, fontSize: '0.78rem', color: 'var(--text-2)', fontVariantNumeric: 'tabular-nums' }}>
+                    {coord.lat.toFixed(4)}, {coord.lng.toFixed(4)}
+                  </p>
+                </div>
+              )
+            })}
+          </div>
         </div>
       </div>
 
+      {/* ── Route map ── */}
       <div className="card map-card">
-        <p className="card-title">
-          <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-            <path fillRule="evenodd" d="M12 1.586l-4 4V14h8V5.586l-4-4zM2 6a2 2 0 012-2h1V3a1 1 0 112 0v1h6V3a1 1 0 112 0v1h1a2 2 0 012 2v9a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" clipRule="evenodd" />
-          </svg>
+        <div className="map-card-head">
+          <SectionIcon>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"/>
+            </svg>
+          </SectionIcon>
           Route map
-        </p>
+        </div>
         <TripMap result={result} />
       </div>
 
+      {/* ── Duty schedule ── */}
       <div className="card">
-        <p className="card-title">
-          <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-            <path fillRule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clipRule="evenodd" />
-          </svg>
-          Duty schedule
-        </p>
-
-        {result.duty_schedule.map((day) => (
-          <div key={day.day_index} className="day-log-block">
-            <DailyLogSheet day={day} />
-            <DayBlock day={day} />
-          </div>
-        ))}
+        <div className="card-head">
+          <p className="card-title">
+            <SectionIcon>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+              </svg>
+            </SectionIcon>
+            Duty schedule — {result.duty_schedule.length} day{result.duty_schedule.length !== 1 ? 's' : ''}
+          </p>
+        </div>
+        <div className="card-body" style={{ paddingTop: 0 }}>
+          {result.duty_schedule.map((day) => (
+            <div key={day.day_index} className="day-log-block">
+              <DailyLogSheet day={day} />
+              <DayBlock day={day} />
+            </div>
+          ))}
+        </div>
       </div>
     </>
   )
