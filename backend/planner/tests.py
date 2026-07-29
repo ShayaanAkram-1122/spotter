@@ -1,6 +1,10 @@
+from unittest.mock import patch
+
 from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APITestCase
+
+from .routing import GeocodingNotFoundError, RoutingServiceError
 
 
 class CreateTripTests(APITestCase):
@@ -12,15 +16,46 @@ class CreateTripTests(APITestCase):
             "dropoff_location": "Houston, TX",
             "current_cycle_used": 12.5,
         }
+        self.mock_coordinates = {
+            "Chicago, IL": (41.8781, -87.6298),
+            "Dallas, TX": (32.7767, -96.7970),
+            "Houston, TX": (29.7604, -95.3698),
+        }
+        self.mock_route = {
+            "total_distance_miles": 1234.56,
+            "total_driving_hours": 18.25,
+            "route_geometry": {
+                "type": "LineString",
+                "coordinates": [
+                    [-87.6298, 41.8781],
+                    [-96.7970, 32.7767],
+                    [-95.3698, 29.7604],
+                ],
+            },
+        }
+
+    def _mock_geocode(self, location):
+        if location not in self.mock_coordinates:
+            raise GeocodingNotFoundError(location)
+        return self.mock_coordinates[location]
 
     def test_valid_input_returns_200(self):
-        response = self.client.post(self.url, self.valid_payload, format="json")
+        with (
+            patch("planner.views.geocode_location", side_effect=self._mock_geocode),
+            patch("planner.views.get_route", return_value=self.mock_route),
+        ):
+            response = self.client.post(self.url, self.valid_payload, format="json")
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["current_location"], "Chicago, IL")
-        self.assertEqual(response.data["pickup_location"], "Dallas, TX")
-        self.assertEqual(response.data["dropoff_location"], "Houston, TX")
         self.assertEqual(response.data["current_cycle_used"], 12.5)
+        self.assertEqual(
+            response.data["coordinates"]["current_location"],
+            {"lat": 41.8781, "lng": -87.6298},
+        )
+        self.assertEqual(response.data["total_distance_miles"], 1234.56)
+        self.assertEqual(response.data["total_driving_hours"], 18.25)
+        self.assertEqual(response.data["route_geometry"]["type"], "LineString")
 
     def test_missing_field_returns_400(self):
         payload = {**self.valid_payload}
@@ -38,3 +73,26 @@ class CreateTripTests(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn("current_cycle_used", response.data)
+
+    def test_location_not_found_returns_400(self):
+        def geocode_side_effect(location):
+            raise GeocodingNotFoundError(location)
+
+        with patch("planner.views.geocode_location", side_effect=geocode_side_effect):
+            response = self.client.post(self.url, self.valid_payload, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(
+            response.data["error"],
+            "Could not resolve location: Chicago, IL",
+        )
+
+    def test_routing_service_unavailable_returns_502(self):
+        with (
+            patch("planner.views.geocode_location", side_effect=self._mock_geocode),
+            patch("planner.views.get_route", side_effect=RoutingServiceError()),
+        ):
+            response = self.client.post(self.url, self.valid_payload, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_502_BAD_GATEWAY)
+        self.assertEqual(response.data["error"], "Routing service is unavailable.")
