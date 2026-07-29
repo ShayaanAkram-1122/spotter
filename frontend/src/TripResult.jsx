@@ -1,3 +1,5 @@
+import TripMap from './TripMap'
+
 const STATUS_META = {
   driving:            { label: 'Driving',             cls: 'badge-driving'       },
   on_duty_not_driving:{ label: 'On duty (not driving)',cls: 'badge-on_duty'       },
@@ -125,6 +127,16 @@ export default function TripResult({ result }) {
             )
           })}
         </div>
+      </div>
+
+      <div className="card map-card">
+        <p className="card-title">
+          <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+            <path fillRule="evenodd" d="M12 1.586l-4 4V14h8V5.586l-4-4zM2 6a2 2 0 012-2h1V3a1 1 0 112 0v1h6V3a1 1 0 112 0v1h1a2 2 0 012 2v9a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" clipRule="evenodd" />
+          </svg>
+          Route map
+        </p>
+        <TripMap result={result} />
       </div>
 
       <div className="card">
