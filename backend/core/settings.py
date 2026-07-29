@@ -18,7 +18,7 @@ DEBUG = os.environ.get('DEBUG', 'True') == 'True'
 ALLOWED_HOSTS = [
     'localhost',
     '127.0.0.1',
-    'spotter-8uzc.onrender.com',
+    'spotter-jipp.onrender.com',
 ]
 
 # ── Installed apps ────────────────────────────────────────────────────────────
