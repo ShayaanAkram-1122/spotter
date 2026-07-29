@@ -1,0 +1,14 @@
+services:
+  - type: web
+    name: routelog-api
+    runtime: python
+    rootDir: .
+    buildCommand: "pip install -r requirements.txt && python manage.py migrate --no-input && python manage.py collectstatic --no-input"
+    startCommand: "gunicorn core.wsgi:application"
+    envVars:
+      - key: DEBUG
+        value: "False"
+      - key: SECRET_KEY
+        generateValue: true
+      - key: PYTHON_VERSION
+        value: "3.11.9"
