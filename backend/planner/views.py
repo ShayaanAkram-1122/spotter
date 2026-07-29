@@ -15,6 +15,18 @@ def health(request):
     return Response({"status": "ok"})
 
 
+@api_view(["GET"])
+def api_root(request):
+    return Response({
+        "name": "RouteLog API",
+        "status": "ok",
+        "endpoints": {
+            "health": "/api/health/",
+            "trips": "POST /api/trips/",
+        },
+    })
+
+
 @api_view(["POST"])
 def create_trip(request):
     serializer = TripRequestSerializer(data=request.data)
